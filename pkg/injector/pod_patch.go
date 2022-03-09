@@ -75,6 +75,7 @@ const (
 	daprHTTPStreamRequestBody         = "dapr.io/http-stream-request-body"
 	daprGracefulShutdownSeconds       = "dapr.io/graceful-shutdown-seconds"
 	daprAPILogLevel                   = "dapr.io/api-log-level"
+	daprUSDVolumeName                 = "dapr.io/unix-domain-socket-volume-name"
 	containersPath                    = "/spec/containers"
 	sidecarHTTPPort                   = 3500
 	sidecarAPIGRPCPort                = 50001
@@ -286,6 +287,8 @@ func getTokenVolumeMount(pod corev1.Pod) *corev1.VolumeMount {
 	return nil
 }
 
+func getUnixDomainSocketVolume(pod corev1.Pod)
+
 func podContainsSidecarContainer(pod *corev1.Pod) bool {
 	for _, c := range pod.Spec.Containers {
 		if c.Name == sidecarContainerName {
@@ -496,6 +499,10 @@ func isResourceDaprEnabled(annotations map[string]string) bool {
 
 func getAPILogLevel(annotations map[string]string) string {
 	return getStringAnnotationOrDefault(annotations, daprAPILogLevel, defaultAPILogLevel)
+}
+
+func getUnixDomainSocketVolumeName(annotations map[string]string) string {
+	return getStringAnnotationOrDefault(annotations, daprUSDVolumeName, "")
 }
 
 func getServiceAddress(name, namespace, clusterDomain string, port int) string {
@@ -712,6 +719,20 @@ func getSidecarContainer(annotations map[string]string, id, daprSidecarImage, im
 
 	if HTTPStreamRequestBodyEnabled {
 		c.Args = append(c.Args, "--http-stream-request-body")
+	}
+
+	if HTTPStreamRequestBodyEnabled {
+		c.Args = append(c.Args, "--http-stream-request-body")
+	}
+
+	unixDomainSocketVolumeName := getUnixDomainSocketVolumeName(annotations)
+	if unixDomainSocketVolumeName != "" {
+		udsDir := "/tmp/uds"
+		c.Args = append(c.Args, fmt.Sprintf("--unix-domain-socket=%s", udsDir))
+		c.VolumeMounts = append(c.VolumeMounts, corev1.VolumeMount{
+			Name:      unixDomainSocketVolumeName,
+			MountPath: udsDir,
+		})
 	}
 
 	secret := getAPITokenSecret(annotations)
